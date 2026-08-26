@@ -1,4 +1,3 @@
-from std.algorithm import parallelize
 from std.memory import stack_allocation
 
 
@@ -354,7 +353,8 @@ def _sort[dtype: DType](
                     data, pivot + 1, length, choice
                 )[0]
 
-        parallelize[split_half](2, 2)
+        split_half(0)
+        split_half(1)
         var left_pivot = subpivots[0]
         var right_pivot = subpivots[1]
 
@@ -389,7 +389,10 @@ def _sort[dtype: DType](
                     True,
                 )
 
-        parallelize[sort_quarter](4, 4)
+        sort_quarter(0)
+        sort_quarter(1)
+        sort_quarter(2)
+        sort_quarter(3)
     else:
         _pdqsort_loop[dtype](data, 0, pivot, bad_allowed, True)
         _pdqsort_loop[dtype](data, pivot + 1, length, bad_allowed, True)
