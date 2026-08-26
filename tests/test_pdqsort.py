@@ -55,9 +55,26 @@ def test_random_arrays_cross_algorithm_thresholds() -> None:
         np.testing.assert_array_equal(values, expected)
 
 
-def test_large_array_uses_parallel_partition_sort() -> None:
+def test_large_array_uses_four_way_partition_sort() -> None:
     random_source = np.random.default_rng(0xD05)
     values = random_source.integers(-(1 << 62), 1 << 62, 300_000, dtype=np.int64)
+    expected = np.sort(values.copy())
+    sort(values)
+    np.testing.assert_array_equal(values, expected)
+
+
+@pytest.mark.parametrize("length", [262_143, 262_144])
+def test_large_split_threshold_boundary(length: int) -> None:
+    random_source = np.random.default_rng(length)
+    values = random_source.integers(-10_000, 10_001, length, dtype=np.int64)
+    expected = np.sort(values.copy())
+    sort(values)
+    np.testing.assert_array_equal(values, expected)
+
+
+def test_simd_partition_scan_handles_scalar_tail() -> None:
+    values = np.arange(4_099, dtype=np.int64) % 7
+    values[::31] = -1
     expected = np.sort(values.copy())
     sort(values)
     np.testing.assert_array_equal(values, expected)

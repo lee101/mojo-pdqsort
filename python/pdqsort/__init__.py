@@ -87,10 +87,24 @@ def _sort_list(values: list[Any]) -> None:
     if not values:
         return
 
-    if all(isinstance(value, bool) for value in values):
+    first_type = type(values[0])
+
+    if first_type is bool and all(type(value) is bool for value in values):
         working = np.asarray(values, dtype=np.uint8)
         _sort_array(working)
-        values[:] = (bool(value) for value in working)
+        values[:] = map(bool, working.tolist())
+        return
+
+    if first_type is int and all(type(value) is int for value in values):
+        working = np.asarray(values, dtype=np.int64)
+        _sort_array(working)
+        values[:] = working.tolist()
+        return
+
+    if first_type is float and all(type(value) is float for value in values):
+        working = np.asarray(values, dtype=np.float64)
+        _sort_array(working)
+        values[:] = working.tolist()
         return
 
     if all(isinstance(value, Integral) and not isinstance(value, bool) for value in values):
@@ -100,13 +114,13 @@ def _sort_list(values: list[Any]) -> None:
             raise OverflowError("Python integers must fit in a signed 64-bit value")
         working = np.asarray(values, dtype=np.int64)
         _sort_array(working)
-        values[:] = (int(value) for value in working)
+        values[:] = working.tolist()
         return
 
     if all(isinstance(value, (float, np.floating)) for value in values):
         working = np.asarray(values, dtype=np.float64)
         _sort_array(working)
-        values[:] = (float(value) for value in working)
+        values[:] = working.tolist()
         return
 
     raise TypeError("pdqsort lists must contain only homogeneous integers or floats")

@@ -1,4 +1,5 @@
 from std.memory import stack_allocation
+from std.sys.info import simd_width_of
 
 
 comptime INSERTION_SORT_THRESHOLD = 24
@@ -10,6 +11,13 @@ comptime PARALLEL_SORT_THRESHOLD = 262144
 
 def _less[dtype: DType](left: Scalar[dtype], right: Scalar[dtype]) -> Bool:
     return left < right or (left == left and right != right)
+
+
+def _less_simd[dtype: DType, width: Int](
+    left: SIMD[dtype, width], right: Scalar[dtype]
+) -> SIMD[DType.bool, width]:
+    var right_vector = SIMD[dtype, width](right)
+    return left.lt(right_vector) | (left.eq(left) & right_vector.ne(right_vector))
 
 
 def _swap[dtype: DType](
@@ -140,10 +148,36 @@ def _partition_right[dtype: DType](
     var first = begin + 1
     var last = end
 
-    while first < last and _less[dtype](data[first], pivot):
+    comptime W = simd_width_of[DType.float64]()
+    var probe = 0
+    while probe < W and first < last and _less[dtype](data[first], pivot):
         first += 1
-    while first < last and not _less[dtype](data[last - 1], pivot):
+        probe += 1
+    if probe == W:
+        while first + W <= last:
+            var selected = _less_simd[dtype, W](
+                data.load[width=W](first), pivot
+            )
+            if not Bool(selected.reduce_and()):
+                break
+            first += W
+        while first < last and _less[dtype](data[first], pivot):
+            first += 1
+
+    probe = 0
+    while probe < W and first < last and not _less[dtype](data[last - 1], pivot):
         last -= 1
+        probe += 1
+    if probe == W:
+        while first + W <= last:
+            var selected = _less_simd[dtype, W](
+                data.load[width=W](last - W), pivot
+            )
+            if Bool(selected.reduce_or()):
+                break
+            last -= W
+        while first < last and not _less[dtype](data[last - 1], pivot):
+            last -= 1
 
     var already_partitioned = first >= last
     var left_offsets = stack_allocation[PARTITION_BLOCK_SIZE, Int]()

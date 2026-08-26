@@ -80,3 +80,27 @@ is an end-to-end API measurement, so the pdqsort time includes conversion to
 and from an `int64` NumPy buffer.  These numbers describe the included seeded
 integer workloads on the machine running the command; they are not a general
 claim that one implementation is always faster.
+
+Measured on 2026-08-26 with the repository's locked benchmark task:
+
+| Workload | Mojo before | Mojo after | Reference after | After comparison |
+|---|---:|---:|---:|---:|
+| ndarray / random 10k | 0.377 ms | 0.382 ms | NumPy 0.166 ms | 2.30x slower |
+| ndarray / random 1m | 50.251 ms | 51.914 ms | NumPy 23.450 ms | 2.21x slower |
+| ndarray / 32 values 1m | 9.543 ms | 9.599 ms | NumPy 5.229 ms | 1.84x slower |
+| ndarray / sorted 1m | 1.030 ms | 1.357 ms | NumPy 23.693 ms | 17.46x faster |
+| Python list / random | 8.854 ms | 1.721 ms | Python 2.405 ms | 1.40x faster |
+
+The optimized list path uses exact built-in type checks, NumPy's native list
+conversion, and a bulk `tolist()` copy-back. Native, contiguous ndarrays remain
+zero-copy across the Python/Mojo boundary. Long one-sided partition scans use
+SIMD after a short scalar probe and finish with a scalar tail; the scalar probe
+avoids vector setup on the common early-exit path.
+
+The sort is comparison- and memory-bound, with irregular swaps and well under
+two arithmetic operations per byte moved, so it does not justify a GPU path.
+No GPU memory was allocated or benchmark sweep run. The pinned toolchain's
+`parallelize` runtime was also not retained: worker dispatch from the shared
+C-ABI library was not runtime-safe in testing. The size threshold still avoids
+large-range decomposition below 262,144 elements, and the independent ranges
+are processed serially.
