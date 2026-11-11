@@ -156,7 +156,7 @@ def _partition_right[dtype: DType](
     if probe == W:
         while first + W <= last:
             var selected = _less_simd[dtype, W](
-                data.load[width=W](first), pivot
+                data.unsafe_load[width=W](first), pivot
             )
             if not Bool(selected.reduce_and()):
                 break
@@ -171,7 +171,7 @@ def _partition_right[dtype: DType](
     if probe == W:
         while first + W <= last:
             var selected = _less_simd[dtype, W](
-                data.load[width=W](last - W), pivot
+                data.unsafe_load[width=W](last - W), pivot
             )
             if Bool(selected.reduce_or()):
                 break
